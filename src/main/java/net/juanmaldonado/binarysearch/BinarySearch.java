@@ -56,8 +56,8 @@ public class BinarySearch {
     private int[] findAllKeyIndexes(int[] searchSpace, int key) {
 
         // searches for the first key occurrence over entire search space.
-        int lowIndex = 0;
-        int firstIndex = this.findKeyIndex(searchSpace, key, lowIndex, SearchedOccurrence.FIRST);
+        int initialLowIndex = 0;
+        int firstIndex = this.findKeyIndex(searchSpace, key, initialLowIndex, SearchedOccurrence.FIRST);
 
         // key not found.
         if (firstIndex == VALUE_NOT_FOUND_INDEX) {
@@ -66,8 +66,8 @@ public class BinarySearch {
 
         // searches for last key occurrence over the right side of the first key occurrence.
         if (firstIndex < searchSpace.length - 1) {
-            lowIndex = firstIndex + 1;
-            int lastIndex = this.findKeyIndex(searchSpace, key, lowIndex, SearchedOccurrence.LAST);
+            initialLowIndex = firstIndex + 1;
+            int lastIndex = this.findKeyIndex(searchSpace, key, initialLowIndex, SearchedOccurrence.LAST);
             if (lastIndex != VALUE_NOT_FOUND_INDEX) {
                 // returns all key's indexes found.
                 return IntStream.rangeClosed(firstIndex, lastIndex).toArray();
@@ -97,14 +97,15 @@ public class BinarySearch {
      *
      * @param searchSpace        search space.
      * @param key                key to be found.
-     * @param lowIndex           lower bound of the current search space.
+     * @param initialLowIndex    initial lower bound of the current search space.
      * @param searchedOccurrence indicates if first or last key occurrence is gonna be searched.
      * @return key's index if search space contains the key. Otherwise returns -1.
      */
-    private int findKeyIndex(int[] searchSpace, int key, int lowIndex, SearchedOccurrence searchedOccurrence) {
+    private int findKeyIndex(int[] searchSpace, int key, int initialLowIndex, SearchedOccurrence searchedOccurrence) {
 
-        // upper bound of the current search space.
+        // bounds of the current search space.
         int highIndex = searchSpace.length - 1;
+        int lowIndex = initialLowIndex;
 
         int keyIndex = VALUE_NOT_FOUND_INDEX;
 
