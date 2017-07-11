@@ -1,13 +1,10 @@
 package net.juanmaldonado.binarysearch;
 
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
 import java.util.function.BiFunction;
-import java.util.function.Function;
+import java.util.stream.IntStream;
 
 /**
- * Binary search algorithm implementation to find an ascendant sorted key's indexes list given a key value.
+ * Binary search algorithm implementation to find an ascendant sorted array of key's indexes given a key value.
  * <p>
  * The algorithm searches inside a sorted (ascendant or descendant) array of integers called search space which could
  * contains the given key once or multiple times.
@@ -15,9 +12,20 @@ import java.util.function.Function;
 public class BinarySearch {
 
     private static final int VALUE_NOT_FOUND_INDEX = -1;
-    private static final List<Integer> VALUE_NOT_FOUND_RESULT = Collections.singletonList(VALUE_NOT_FOUND_INDEX);
+    private static final int[] VALUE_NOT_FOUND_RESULT = {VALUE_NOT_FOUND_INDEX};
     private static final BiFunction<Integer, Integer, Boolean> ASC_SORTED_SEARCH_SPACE_REDUCTION_CONDITION = (a, b) -> a < b;
     private static final BiFunction<Integer, Integer, Boolean> DESC_SORTED_SEARCH_SPACE_REDUCTION_CONDITION = (a, b) -> a > b;
+
+    private enum SearchedOccurrence {
+        /**
+         * Refers to the key occurrence related to the lowest search space index.
+         */
+        FIRST,
+        /**
+         * Refers to the key occurrence related to the highest search space index.
+         */
+        LAST;
+    }
 
     private final int[] searchSpace;
     private final int key;
@@ -37,15 +45,37 @@ public class BinarySearch {
     /**
      * Search given a search space and key.
      *
-     * @return asc sorted key's indexes list if the search space contains the key. Otherwise, it returns an array which
+     * @return asc sorted array of key's indexes if the search space contains the key. Otherwise, it returns an array which
      * contains the -1 single value.
      */
-    public List<Integer> search() {
-
-        List<Integer> allKeyIndexes = this.findAllKeyIndexes(this.searchSpace, this.key);
-        Collections.sort(allKeyIndexes);
-        return allKeyIndexes;
+    public int[] search() {
+        return this.findAllKeyIndexes(this.searchSpace, this.key);
     }
+
+
+    private int[] findAllKeyIndexes(int[] searchSpace, int key) {
+
+        // searches for the first key occurrence over entire search space.
+        int lowIndex = 0;
+        int firstIndex = this.findKeyIndex(searchSpace, key, lowIndex, SearchedOccurrence.FIRST);
+
+        // key not found.
+        if (firstIndex == VALUE_NOT_FOUND_INDEX) {
+            return VALUE_NOT_FOUND_RESULT;
+        }
+
+        // searches for last key occurrence over the right side of the first key occurrence.
+        if (firstIndex < searchSpace.length - 1) {
+            lowIndex = firstIndex + 1;
+            int lastIndex = this.findKeyIndex(searchSpace, key, lowIndex, SearchedOccurrence.LAST);
+            if (lastIndex != VALUE_NOT_FOUND_INDEX) {
+                // returns all key's indexes found.
+                return IntStream.rangeClosed(firstIndex, lastIndex).toArray();
+            }
+        }
+        return new int[]{firstIndex};
+    }
+
 
     /**
      * Select the condition to be use by the binary search algorithm for search space reduction depending on the search
@@ -62,30 +92,21 @@ public class BinarySearch {
         return ASC_SORTED_SEARCH_SPACE_REDUCTION_CONDITION;
     }
 
-    private List<Integer> findAllKeyIndexes(int[] searchSpace, int key) {
-
-        int keyIndex = this.findFirstKeyIndex(searchSpace, key);
-
-        if (keyIndex != VALUE_NOT_FOUND_INDEX) {
-            List<Integer> keyIndexes = this.findNeighborsKeyIndexes(searchSpace, key, keyIndex);
-            keyIndexes.add(keyIndex);
-            return keyIndexes;
-        }
-        return VALUE_NOT_FOUND_RESULT;
-    }
-
     /**
-     * Implements the binary search algorithm to find the first key's index if exists.
+     * Implements the binary search algorithm to find the first or last key's index if exists.
      *
-     * @param searchSpace search space.
-     * @param key         key to be found.
+     * @param searchSpace        search space.
+     * @param key                key to be found.
+     * @param lowIndex           lower bound of the current search space.
+     * @param searchedOccurrence indicates if first or last key occurrence is gonna be searched.
      * @return key's index if search space contains the key. Otherwise returns -1.
      */
-    private int findFirstKeyIndex(int[] searchSpace, int key) {
+    private int findKeyIndex(int[] searchSpace, int key, int lowIndex, SearchedOccurrence searchedOccurrence) {
 
-        // bounds of the current search space.
-        int lowIndex = 0;
+        // upper bound of the current search space.
         int highIndex = searchSpace.length - 1;
+
+        int keyIndex = VALUE_NOT_FOUND_INDEX;
 
         BiFunction<Integer, Integer, Boolean> searchSpaceReductionCondition = getSearchSpaceReductionCondition(searchSpace);
 
@@ -95,52 +116,29 @@ public class BinarySearch {
             int middleIndex = (highIndex + lowIndex) / 2;
             // verify if the search space's middle value corresponds to the given key.
             if (searchSpace[middleIndex] == key) {
-                // key found and returns the corresponding index.
-                return middleIndex;
+
+                // key found and current key's index update.
+                keyIndex = middleIndex;
+
+                if (SearchedOccurrence.FIRST.equals(searchedOccurrence)) {
+                    // search to the left bound.
+                    highIndex = middleIndex - 1;
+                } else {
+                    // search to the right bound.
+                    lowIndex = middleIndex + 1;
+                }
+
             } else if (searchSpaceReductionCondition.apply(key, searchSpace[middleIndex])) {
-                // reduce the search space to the right middle of the current search space.
+                // reduce the search space to the left middle of the current search space.
                 highIndex = middleIndex - 1;
             } else {
-                // reduce the search space to the left middle of the current search space.
+                // reduce the search space to the right middle of the current search space.
                 lowIndex = middleIndex + 1;
             }
         }
+
         // key not found.
-        return VALUE_NOT_FOUND_INDEX;
-
-    }
-
-    /**
-     * Finds all key's indexes around (both left and right sides) of a given key's index.
-     *
-     * @param searchSpace search space.
-     * @param key         value to be found.
-     * @param keyIndex    key's index.
-     * @return list of key's indexes found around the given key's index. Otherwise returns an empty list.
-     */
-    private List<Integer> findNeighborsKeyIndexes(int[] searchSpace, int key, int keyIndex) {
-
-        // search neighbors to the left side of the given key's index.
-        List<Integer> neighborsKeyIndexes = findOneSideNeighborsKeyIndexes(searchSpace, key,
-                keyIndex - 1, i -> i >= 0, i -> i = i - 1);
-        // search neighbors to the right side of the given key's index.
-        neighborsKeyIndexes.addAll(findOneSideNeighborsKeyIndexes(searchSpace, key,
-                keyIndex + 1, i -> i < searchSpace.length, i -> i = i + 1));
-        return neighborsKeyIndexes;
-    }
-
-    private List<Integer> findOneSideNeighborsKeyIndexes(int[] searchSpace, int key, int startIndex,
-                                                         Function<Integer, Boolean> stopCondition,
-                                                         Function<Integer, Integer> increment) {
-        List<Integer> neighborsKeyIndexes = new ArrayList<>();
-        for (int i = startIndex; stopCondition.apply(i); i = increment.apply(i)) {
-            if (searchSpace[i] == key) {
-                neighborsKeyIndexes.add(i);
-            } else {
-                break;
-            }
-        }
-        return neighborsKeyIndexes;
+        return keyIndex;
     }
 
 }
